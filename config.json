@@ -1,0 +1,11 @@
+{
+  "MainPkgDir": ".",
+  "OutputPath": "dist",
+  "NewGopath": "pkg",
+  "Tags": "",
+  "GOOS": "windows",
+  "GOARCH": "amd64",
+  "CGOENABLED": "0",
+  "WindowsHide": "1",
+  "NoStatic": "1"
+}
