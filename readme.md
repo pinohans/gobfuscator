@@ -1,11 +1,13 @@
 # gobfuscator
 
+[![gobfuscator](https://github.com/pinohans/gobfuscator/actions/workflows/main.yml/badge.svg)](https://github.com/pinohans/gobfuscator/actions/workflows/main.yml)
+
 Inspired by [gobfuscate](https://github.com/unixpickle/gobfuscate), but gobfuscator is different in totally.
 
 
-## 1 how to
+## 1. how to
 
-### 1.1 create config.json
+### 1.1. create config.json
 
 > Content of config.json
 
@@ -39,20 +41,26 @@ type Config struct {
 }
 ```
 
-### 1.2 compile and run
+### 1.2. compile and run
 
 ```bash
-go mod tidy && go build -o gobfuscator . && ./gobfuscator
+go mod tidy && go build -o gobfuscator . && ./gobfuscator -c config.json
 ```
 
 ## 2. dependency
 
 > test with Go 1.16.4
 
-## 3. technical
+## 3. target
+
+- [![gobfuscator-frp](https://github.com/pinohans/gobfuscator/actions/workflows/frp.yml/badge.svg)](https://github.com/pinohans/gobfuscator/actions/workflows/frp.yml)
+- [![gobfuscator-fscan](https://github.com/pinohans/gobfuscator/actions/workflows/fscan.yml/badge.svg)](https://github.com/pinohans/gobfuscator/actions/workflows/fscan.yml)
+
+## 4. technical
 
 1. Obfuscate third party package with ast.
 2. Process build tags and go:embed.
 3. Fast import graph walker.
 
 And so on.
+
