@@ -30,11 +30,15 @@ var (
 	outputPath = func() string {
 		var err error
 		ret := "main"
+		ext := fmt.Sprintf("_%s_%s", buildCtx.GOOS, buildCtx.GOARCH)
+		if buildCtx.GOOS == "windows" {
+			ext += ".exe"
+		}
 		for index, arg := range os.Args {
 			switch arg {
 			case "-o":
 				if filepath.IsAbs(os.Args[index+1]) {
-					return os.Args[index+1]
+					return os.Args[index+1] + ext
 				} else {
 					ret = os.Args[index+1]
 				}
@@ -43,7 +47,7 @@ var (
 		if ret, err = filepath.Abs(filepath.Join(currentPath, ret)); err != nil {
 			log.Fatalln("Failed to get output path:", err)
 		} else {
-			return ret
+			return ret + ext
 		}
 		return ""
 	}()
@@ -137,22 +141,20 @@ func main() {
 		}
 
 		args := os.Args[1 : len(os.Args)-1]
-		args = append(args, ".")
+		bOutput := false
 		for index, arg := range args {
 			switch arg {
 			case "-o":
 				args[index+1] = outputPath
+				bOutput = true
 			}
 		}
 
-		for index, arg := range args {
-			switch arg {
-			case "-o":
-				if !filepath.IsAbs(args[index+1]) {
-					args[index+1] = filepath.Join(currentPath, args[index+1])
-				}
-			}
+		if !bOutput {
+			args = append(args, "-o")
+			args = append(args, outputPath)
 		}
+		args = append(args, ".")
 
 		cmd := exec.Command("go", args...)
 		cmd.Stdin = os.Stdin
