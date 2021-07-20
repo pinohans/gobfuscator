@@ -20,19 +20,7 @@ import (
 
 func Obfuscate() error {
 	var mapPkgName sync.Map
-	if err := preObfuscate(&mapPkgName); err != nil {
-		log.Println("Failed to preObfuscate: ", err)
-		return err
-	}
-	if err := doObfuscate(mapPkgName); err != nil {
-		log.Println("Failed to doObfuscate: ", err)
-		return err
-	}
-	return nil
-}
-
-func preObfuscate(mapPkgName *sync.Map) error {
-	if err := dependency.Walk(ctxt, mainPkgDir, func(pkg *build.Package) error {
+	if err := dependency.Walk(buildCtx, mainPath, func(pkg *build.Package) error {
 		// TODO: maybe collision
 		mapPkgName.Store(pkg.ImportPath, randMd5())
 		return nil
@@ -40,11 +28,20 @@ func preObfuscate(mapPkgName *sync.Map) error {
 		log.Println("Failed to obfuscate package names: ", err)
 		return err
 	}
+
+	if err := doObfuscate(&mapPkgName); err != nil {
+		log.Println("Failed to doObfuscate: ", err)
+		return err
+	}
 	return nil
 }
 
+func isMainPkg(pkg *build.Package) bool {
+	return pkg.Name == "main"
+}
+
 type visitor struct {
-	mapPkgName sync.Map
+	mapPkgName *sync.Map
 }
 
 func (v *visitor) Visit(node ast.Node) ast.Visitor {
@@ -106,18 +103,18 @@ func writeGoFile(filename string, node ast.Node, set *token.FileSet) error {
 	return nil
 }
 
-func doObfuscate(mapPkgName sync.Map) error {
-	if err := dependency.Walk(ctxt, mainPkgDir, func(pkg *build.Package) error {
+func doObfuscate(mapPkgName *sync.Map) error {
+	if err := dependency.Walk(buildCtx, mainPath, func(pkg *build.Package) error {
 		var newPath string
 		if isMainPkg(pkg) {
-			newPath = filepath.Join(newGopath, "src")
+			newPath = filepath.Join(buildPath, "src")
 		} else {
 			newImportPath, ok := mapPkgName.Load(pkg.ImportPath)
 			if !ok {
 				log.Println("Failed to doObfuscate in Walk when mapPkgName Load: ", pkg.ImportPath)
 				return errors.New("mapPkgName Load error")
 			}
-			newPath = filepath.Join(newGopath, "src", newImportPath.(string))
+			newPath = filepath.Join(buildPath, "src", newImportPath.(string))
 		}
 		if err := os.MkdirAll(newPath, 0755); err != nil {
 			log.Println("Failed to MkdirAll newPath in Walk of CopySrc: ", err)
@@ -182,8 +179,4 @@ func doObfuscate(mapPkgName sync.Map) error {
 		return err
 	}
 	return nil
-}
-
-func isMainPkg(pkg *build.Package) bool {
-	return pkg.ImportPath == "." && pkg.Name == "main"
 }

@@ -5,8 +5,6 @@ name: gobfuscator-frp
 # Controls when the action will run.
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
-  push:
-    branches: [ master, dev ]
   pull_request:
     branches: [ master, dev ]
 
@@ -18,14 +16,16 @@ jobs:
   frpc:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.16.x
+      - run: |
+          # https://github.com/actions/setup-go/issues/107
+          cp -f `which go` /usr/bin/go
       - uses: actions/checkout@v2
-      - name: dependency
-        run: rm -rf /usr/local/go && curl https://dl.google.com/go/go1.16.4.linux-amd64.tar.gz -o go1.16.4.linux-amd64.tar.gz && tar -xzf go1.16.4.linux-amd64.tar.gz
       - name: build gobfuscator
-        run: export PATH=`pwd`/go/bin:$PATH && export GOROOT=`pwd`/go && git clone https://github.com/pinohans/gobfuscator.git && cd gobfuscator && go mod tidy && go build -o gobfuscator .
+        run: go env && go build -o gobfuscator .
       - name: clone frp
-        run: git clone https://github.com/fatedier/frp.git
-      - name: obfuscate frpc
-        run: export PATH=`pwd`/go/bin:$PATH && export GOROOT=`pwd`/go && cd gobfuscator && echo '{"MainPkgDir":"../frp/cmd/frpc","OutputPath":"./frpc","NewGopath":"pkg","Tags":"","GOOS":"windows","GOARCH":"amd64","CGOENABLED":"0","WindowsHide":"1","NoStatic":"1"}' > config.json && ./gobfuscator -c config.json
-      - name: obfuscate frps
-        run: export PATH=`pwd`/go/bin:$PATH && export GOROOT=`pwd`/go && cd gobfuscator && echo '{"MainPkgDir":"../frp/cmd/frps","OutputPath":"./frps","NewGopath":"pkg","Tags":"","GOOS":"windows","GOARCH":"amd64","CGOENABLED":"0","WindowsHide":"1","NoStatic":"1"}' > config.json && ./gobfuscator -c config.json
+        run: cd /tmp && git clone https://github.com/fatedier/frp.git && cd frp && sed -i 's/go build/\.\/gobfuscator build/g' Makefile
+      - name: obfuscate frp
+        run: go env && cp gobfuscator /tmp/frp/gobfuscator && cd /tmp/frp && make build
