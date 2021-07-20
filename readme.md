@@ -7,44 +7,10 @@ Inspired by [gobfuscate](https://github.com/unixpickle/gobfuscate), but gobfusca
 
 ## 1. how to
 
-### 1.1. create config.json
-
-> Content of config.json
-
-```json
-{
-  "MainPkgDir": ".",
-  "OutputPath": "dist",
-  "NewGopath": "pkg",
-  "Tags": "",
-  "GOOS": "windows",
-  "GOARCH": "amd64",
-  "CGOENABLED": "0",
-  "WindowsHide": "1",
-  "NoStatic": "1"
-}
-```
-
-> Explanation of parameter
-
-```go
-type Config struct {
-	MainPkgDir  string // dir of main package
-	OutputPath  string // path of dist
-	NewGopath   string // dir of new GOPATH
-	Tags        string // tags are passed to the go compiler
-	GOOS        string // target os
-	GOARCH      string // target arch
-	CGOENABLED  string // cgo enable
-	WindowsHide string // hide windows GUI
-	NoStatic    string // no static link
-}
-```
-
-### 1.2. compile and run
+Just only use it as go.
 
 ```bash
-go mod tidy && go build -o gobfuscator . && ./gobfuscator -c config.json
+gobfuscator build .
 ```
 
 ## 2. dependency

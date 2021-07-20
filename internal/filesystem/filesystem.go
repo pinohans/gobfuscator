@@ -385,7 +385,7 @@ func IsDir(name string) (bool, error) {
 		return false, err
 	}
 	if !fi.IsDir() {
-		return false, errors.Errorf("%q is not a directory", name)
+		return false, nil
 	}
 	return true, nil
 }

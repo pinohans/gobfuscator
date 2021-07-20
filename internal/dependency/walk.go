@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-func Walk(ctx *build.Context, projectDir string, walkFunc func(pkg *build.Package) error) error {
+func Walk(ctx build.Context, projectDir string, walkFunc func(pkg *build.Package) error) error {
 	errChan := make(chan error, 0)
 	done := false
 	go func() {
@@ -39,7 +39,7 @@ func Walk(ctx *build.Context, projectDir string, walkFunc func(pkg *build.Packag
 	return err
 }
 
-func processImports(ctx *build.Context, pkg *build.Package, walkFunc func(pkg *build.Package) error, wg *sync.WaitGroup, mapProcessImports *sync.Map, errChan chan error, done *bool) {
+func processImports(ctx build.Context, pkg *build.Package, walkFunc func(pkg *build.Package) error, wg *sync.WaitGroup, mapProcessImports *sync.Map, errChan chan error, done *bool) {
 	value, ok := mapProcessImports.Load(pkg.ImportPath)
 	if (ok && value.(bool)) || *done {
 		return
