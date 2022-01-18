@@ -47,7 +47,6 @@ func processImports(ctx build.Context, pkg *build.Package, walkFunc func(pkg *bu
 		return
 	}
 	mapProcessImports.Store(pkg.ImportPath, true)
-	log.Println(pkg.ImportPath)
 	if err := walkFunc(pkg); err != nil {
 		errChan <- err
 		return

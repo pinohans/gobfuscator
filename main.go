@@ -14,7 +14,6 @@ import (
 )
 
 func GetRandomMd5() string {
-	rand.Seed(time.Now().Unix())
 	buf := make([]byte, 32)
 	rand.Read(buf)
 	return fmt.Sprintf("%x", md5.Sum(buf))
@@ -39,12 +38,20 @@ func main() {
 	var err error
 	var mainPath string
 	var isDir bool
+	var currentPath string
+	var mainPkg string
+
+	rand.Seed(time.Now().Unix())
 
 	if !(len(os.Args) >= 3 && os.Args[1] == "build") {
 		log.Fatalln("Please use gobfuscator in build phase.")
 	}
 
-	buildPath := fmt.Sprintf(".gobfuscator.%s", GetRandomMd5())
+	if currentPath, err = os.Getwd(); err != nil {
+		log.Fatalln("Get current path error: ", err)
+	}
+
+	buildPath := filepath.Join(currentPath, fmt.Sprintf(".gobfuscator.%s", GetRandomMd5()))
 
 	if err = os.RemoveAll(buildPath); err != nil {
 		log.Fatalln("Failed to RemoveAll: ", err)
@@ -62,15 +69,16 @@ func main() {
 		mainPath = filepath.Dir(mainPath)
 	}
 
-	if err = Obfuscate(mainPath, buildPath); err != nil {
+	if mainPkg, err = Obfuscate(mainPath, buildPath); err != nil {
 		log.Fatalln("Failed to obfuscate: ", err)
 	}
 
-	cmd := exec.Command("go", os.Args...)
+	args := os.Args[1 : len(os.Args)-1]
+	args = append(args, mainPkg)
+	cmd := exec.Command("go", args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Dir = filepath.Join(buildPath, "src")
 	cmd.Env = GetBuildEnv(buildPath)
 
 	log.Println(strings.Join(cmd.Args, " "))
