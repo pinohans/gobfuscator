@@ -8,27 +8,29 @@ import (
 	"sync"
 )
 
-func Walk(ctx build.Context, projectDir string, walkFunc func(pkg *build.Package) error) error {
+func Walk(ctx build.Context, projectDir string, walkFunc func(pkg *build.Package) error) (err error) {
 	errChan := make(chan error, 0)
 	done := false
+
 	go func() {
 		defer close(errChan)
 		wg := sync.WaitGroup{}
 		mapProcessImports := sync.Map{}
-		rootPkg, err := ctx.ImportDir(projectDir, 0)
-		if err != nil {
-			log.Println("Failed to import projectDir: ", err)
-			errChan <- err
+
+		if rootPkg, importDirErr := ctx.ImportDir(projectDir, 0); importDirErr != nil {
+			log.Println("Failed to import projectDir: ", importDirErr)
+			errChan <- importDirErr
 			return
+		} else {
+			wg.Add(1)
+			go func() {
+				processImports(ctx, rootPkg, walkFunc, &wg, &mapProcessImports, errChan, &done)
+				wg.Done()
+			}()
+			wg.Wait()
 		}
-		wg.Add(1)
-		go func() {
-			processImports(ctx, rootPkg, walkFunc, &wg, &mapProcessImports, errChan, &done)
-			wg.Done()
-		}()
-		wg.Wait()
 	}()
-	var err error = nil
+
 	select {
 	case err = <-errChan:
 		if err != nil {
@@ -54,16 +56,14 @@ func processImports(ctx build.Context, pkg *build.Package, walkFunc func(pkg *bu
 		var child *build.Package
 		var err error
 		if strings.HasPrefix(pkgName, ".") {
-			child, err = ctx.Import(pkgName, pkg.Dir, 0)
-			if err != nil {
+			if child, err = ctx.Import(pkgName, pkg.Dir, 0); err != nil {
 				log.Println("Failed to Import child start with .: ", err)
 				errChan <- err
 				return
 			}
 			child.ImportPath = filepath.Join(pkg.ImportPath, child.ImportPath)
 		} else {
-			child, err = ctx.Import(pkgName, "", 0)
-			if err != nil {
+			if child, err = ctx.Import(pkgName, "", 0); err != nil {
 				log.Println("Failed to Import normal child: ", err)
 				errChan <- err
 				return

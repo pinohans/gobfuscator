@@ -18,22 +18,20 @@ import (
 	"sync"
 )
 
-func Obfuscate() error {
+func Obfuscate(mainPath string, buildPath string) (err error) {
 	var mapPkgName sync.Map
-	if err := dependency.Walk(buildCtx, mainPath, func(pkg *build.Package) error {
+
+	if err = dependency.Walk(build.Default, mainPath, func(pkg *build.Package) error {
 		// TODO: maybe collision
-		mapPkgName.Store(pkg.ImportPath, randMd5())
+		mapPkgName.Store(pkg.ImportPath, GetRandomMd5())
 		return nil
 	}); err != nil {
 		log.Println("Failed to obfuscate package names: ", err)
-		return err
+	} else if err = doObfuscate(&mapPkgName, mainPath, buildPath); err != nil {
+		log.Println("Failed to doObfuscate: ", err)
 	}
 
-	if err := doObfuscate(&mapPkgName); err != nil {
-		log.Println("Failed to doObfuscate: ", err)
-		return err
-	}
-	return nil
+	return err
 }
 
 func isMainPkg(pkg *build.Package) bool {
@@ -103,18 +101,18 @@ func writeGoFile(filename string, node ast.Node, set *token.FileSet) error {
 	return nil
 }
 
-func doObfuscate(mapPkgName *sync.Map) error {
-	if err := dependency.Walk(buildCtx, mainPath, func(pkg *build.Package) error {
+func doObfuscate(mapPkgName *sync.Map, mainPath string, buildPath string) error {
+	if err := dependency.Walk(build.Default, mainPath, func(pkg *build.Package) error {
 		var newPath string
 		if isMainPkg(pkg) {
 			newPath = filepath.Join(buildPath, "src")
 		} else {
-			newImportPath, ok := mapPkgName.Load(pkg.ImportPath)
-			if !ok {
+			if newImportPath, ok := mapPkgName.Load(pkg.ImportPath); !ok {
 				log.Println("Failed to doObfuscate in Walk when mapPkgName Load: ", pkg.ImportPath)
 				return errors.New("mapPkgName Load error")
+			} else {
+				newPath = filepath.Join(buildPath, "src", newImportPath.(string))
 			}
-			newPath = filepath.Join(buildPath, "src", newImportPath.(string))
 		}
 		if err := os.MkdirAll(newPath, 0755); err != nil {
 			log.Println("Failed to MkdirAll newPath in Walk of CopySrc: ", err)

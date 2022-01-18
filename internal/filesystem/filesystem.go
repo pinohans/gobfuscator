@@ -5,6 +5,7 @@
 package filesystem
 
 import (
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -13,8 +14,6 @@ import (
 	"strings"
 	"syscall"
 	"unicode"
-
-	"github.com/pkg/errors"
 )
 
 // HasFilepathPrefix will determine if "path" starts with "prefix" from
@@ -54,7 +53,7 @@ func HasFilepathPrefix(path, prefix string) (bool, error) {
 	var dn string
 
 	if isDir, err := IsDir(path); err != nil {
-		return false, errors.Wrap(err, "failed to check filepath prefix")
+		return false, errors.New("failed to check filepath prefix")
 	} else if isDir {
 		dn = path
 	} else {
@@ -84,7 +83,7 @@ func HasFilepathPrefix(path, prefix string) (bool, error) {
 		// problematic filesystem is not the last one.
 		caseSensitive, err := IsCaseSensitiveFilesystem(filepath.Join(d, dirs[i]))
 		if err != nil {
-			return false, errors.Wrap(err, "failed to check filepath prefix")
+			return false, errors.New("failed to check filepath prefix")
 		}
 		if caseSensitive {
 			d = filepath.Join(d, dirs[i])
@@ -135,12 +134,12 @@ func CopyDir(src, dst string) error {
 	}
 
 	if err = os.MkdirAll(dst, fi.Mode()); err != nil {
-		return errors.Wrapf(err, "cannot mkdir %s", dst)
+		return errors.New("cannot mkdir %s")
 	}
 
 	entries, err := ioutil.ReadDir(src)
 	if err != nil {
-		return errors.Wrapf(err, "cannot read directory %s", dst)
+		return errors.New("cannot read directory %s")
 	}
 
 	for _, entry := range entries {
@@ -149,13 +148,13 @@ func CopyDir(src, dst string) error {
 
 		if entry.IsDir() {
 			if err = CopyDir(srcPath, dstPath); err != nil {
-				return errors.Wrap(err, "copying directory failed")
+				return errors.New("copying directory failed")
 			}
 		} else {
 			// This will include symlinks, which is what we want when
 			// copying things.
 			if err = CopyFile(srcPath, dstPath); err != nil {
-				return errors.Wrap(err, "copying file failed")
+				return errors.New("copying file failed")
 			}
 		}
 	}
@@ -171,11 +170,11 @@ func EquivalentPaths(p1, p2 string) (bool, error) {
 
 	fi1, err := os.Stat(p1)
 	if err != nil {
-		return false, errors.Wrapf(err, "could not check for path equivalence")
+		return false, errors.New("could not check for path equivalence")
 	}
 	fi2, err := os.Stat(p2)
 	if err != nil {
-		return false, errors.Wrapf(err, "could not check for path equivalence")
+		return false, errors.New("could not check for path equivalence")
 	}
 
 	p1Filename, p2Filename := "", ""
@@ -188,9 +187,9 @@ func EquivalentPaths(p1, p2 string) (bool, error) {
 	}
 
 	if isPrefix1, err := HasFilepathPrefix(p1, p2); err != nil {
-		return false, errors.Wrap(err, "failed to check for path equivalence")
+		return false, errors.New("failed to check for path equivalence")
 	} else if isPrefix2, err := HasFilepathPrefix(p2, p1); err != nil {
-		return false, errors.Wrap(err, "failed to check for path equivalence")
+		return false, errors.New("failed to check for path equivalence")
 	} else if !isPrefix1 || !isPrefix2 {
 		return false, nil
 	}
@@ -198,7 +197,7 @@ func EquivalentPaths(p1, p2 string) (bool, error) {
 	if p1Filename != "" || p2Filename != "" {
 		caseSensitive, err := IsCaseSensitiveFilesystem(filepath.Join(p1, p1Filename))
 		if err != nil {
-			return false, errors.Wrap(err, "could not check for filesystem case-sensitivity")
+			return false, errors.New("could not check for filesystem case-sensitivity")
 		}
 		if caseSensitive {
 			if p1Filename != p2Filename {
@@ -238,7 +237,7 @@ func IsCaseSensitiveFilesystem(dir string) (bool, error) {
 
 	dInfo, err := os.Stat(dir)
 	if err != nil {
-		return false, errors.Wrap(err, "could not determine the case-sensitivity of the filesystem")
+		return false, errors.New("could not determine the case-sensitivity of the filesystem")
 	}
 
 	aInfo, err := os.Stat(alt)
@@ -248,7 +247,7 @@ func IsCaseSensitiveFilesystem(dir string) (bool, error) {
 			return true, nil
 		}
 
-		return false, errors.Wrap(err, "could not determine the case-sensitivity of the filesystem")
+		return false, errors.New("could not determine the case-sensitivity of the filesystem")
 	}
 
 	return !os.SameFile(dInfo, aInfo), nil
@@ -291,7 +290,7 @@ func genTestFilename(str string) string {
 // of the source file. The file mode will be copied from the source.
 func CopyFile(src, dst string) (err error) {
 	if sym, err := IsSymlink(src); err != nil {
-		return errors.Wrap(err, "symlink check failed")
+		return errors.New("symlink check failed")
 	} else if sym {
 		if err := cloneSymlink(src, dst); err != nil {
 			if runtime.GOOS == "windows" {
@@ -361,23 +360,6 @@ func cloneSymlink(sl, dst string) error {
 	return os.Symlink(resolved, dst)
 }
 
-// EnsureDir tries to ensure that a directory is present at the given path. It first
-// checks if the directory already exists at the given path. If there isn't one, it tries
-// to create it with the given permissions. However, it does not try to create the
-// directory recursively.
-func EnsureDir(path string, perm os.FileMode) error {
-	_, err := IsDir(path)
-
-	if os.IsNotExist(err) {
-		err = os.Mkdir(path, perm)
-		if err != nil {
-			return errors.Wrapf(err, "failed to ensure directory at %q", path)
-		}
-	}
-
-	return err
-}
-
 // IsDir determines is the path given is a directory or not.
 func IsDir(name string) (bool, error) {
 	fi, err := os.Stat(name)
@@ -416,22 +398,6 @@ func IsNonEmptyDir(name string) (bool, error) {
 	default:
 		return false, err
 	}
-}
-
-// IsRegular determines if the path given is a regular file or not.
-func IsRegular(name string) (bool, error) {
-	fi, err := os.Stat(name)
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	mode := fi.Mode()
-	if mode&os.ModeType != 0 {
-		return false, errors.Errorf("%q is a %v, expected a file", name, mode)
-	}
-	return true, nil
 }
 
 // IsSymlink determines if the given path is a symbolic link.
